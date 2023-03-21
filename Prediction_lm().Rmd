@@ -1,0 +1,174 @@
+---
+title: "Prediction with lm"
+output: html_document
+date: "2023-03-14"
+---
+
+### 1 DATA
+
+```{r}
+autompg = read.table("http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data",
+                     quote = "\"", comment.char = "", stringsAsFactors = FALSE)
+colnames(autompg)
+str(autompg)
+df<-autompg
+```
+#### Data Prep
+
+##### column name adjustment, class correction
+```{r}
+colnames(df)<-c("mpg", "cylinders", "displacement","horsepower", "weight", "acceleration", "model year", "origin", "car name")
+
+df$horsepower<-as.numeric(df$horsepower)
+str(df)
+```
+```{r}
+anyNA(df)
+
+a <- is.na(df)
+colSums(a)
+```
+#### Mean of horsepower 
+```{r}
+mean(df$horsepower, na.rm=TRUE)
+```
+
+#### 
+```{r}
+ind<-which(is.na(df), arr.ind = TRUE)
+ind
+```
+
+#### working with NAs.
+
+```{r}
+length(unique(df$origin))
+
+means<-aggregate(df$horsepower, by=list(df$origin), FUN=mean, na.rm = TRUE)
+means
+```
+
+```{r}
+df2<-df
+
+for (i in 1:nrow(ind)) {
+  nas<-ind[i,1]
+  d<-df2[nas,]
+  df2[nas,4]<-means[d[,8],2]
+}
+
+any(is.na(df2))
+```
+
+```{r}
+df2[ind[,1],]
+df3<-na.omit(df)
+dim(df)
+dim(df3)
+```
+### 2 PLOTS AND DESCRIPTIVES
+
+```{r}
+
+par(mfcol = c(1, 3))
+
+plot(df$horsepower, df$mpg, col = "red", main = "mpg vs. horsepower", xlab = "Horsepower", ylab = "MPG")
+
+plot(df$displacement, df$mpg, col = "blue", main = "mpg vs. displacement", xlab = "Displacement", ylab = "MPG")
+
+plot(df$acceleration, df$mpg, col = "green", main = "mpg vs. acceleration", xlab = "Acceleration", ylab = "MPG")
+
+```
+
+
+```{r}
+
+par(mfcol = c(2, 3))
+
+plot(df$horsepower, df$mpg, col = "red", main = "mpg vs. horsepower", xlab = "Horsepower", ylab = "MPG")
+
+plot(df$displacement, df$mpg, col = "blue", main = "mpg vs. displacement", xlab = "Displacement", ylab = "MPG")
+
+plot(df$acceleration, df$mpg, col = "green", main = "mpg vs. acceleration", xlab = "Acceleration", ylab = "MPG")
+
+plot(df$horsepower, df$weight, col = "red", main = "weight vs. horsepower", xlab = "Horsepower", ylab = "Weight")
+
+plot(df$displacement, df$weight, col = "blue", main = "weight vs. displacement", xlab = "Displacement", ylab = "Weight")
+
+plot(df$acceleration, df$weight, col = "green", main = "weight vs. acceleration", xlab = "Acceleration", ylab = "Weight")
+```
+
+#### Correlation plot
+
+```{r}
+library(corrplot)
+
+cov(df[,1:8])
+cov(df[,1:8], use = "complete.obs")
+cor_matrix<-cor(df[,1:8], use = "complete.obs")
+
+corrplot(cor_matrix, type="upper", cl.cex=0.75, tl.cex=0.75)
+
+cor_matrix <- cor(df[,c("mpg", "horsepower", "displacement", "acceleration", "weight")], use = "complete.obs")
+
+corrplot(cor_matrix, method = "color", tl.col = "black", tl.srt = 45)
+
+```
+
+
+### lm() and training RMSPE
+
+```{r}
+df<-df[complete.cases(df),]
+model1<-lm(mpg ~ ., data=df[,-9])
+summary(model1)
+
+yhat<-model1$fitted.valuesda
+RMSPE<-sqrt(mean((df$mpg - yhat)^2))
+RMSPE
+  
+```
+
+#### Prediction Accuracy 
+
+```{r}
+set.seed(1)
+
+ind<-sample(1:nrow(df), nrow(df)*0.8, replace=FALSE)
+train<-df[ind,1:8]
+test<-df[-ind,1:8]
+
+dim(train)
+dim(test)
+```
+
+
+```{r}
+#calculate the test RMSPE
+
+model1<-lm(mpg ~., data=train)
+summary(model1)
+
+yhat <-predict(model1, newdata = test)
+rmspet<-sqrt(mean((test$mpg-yhat)^2))
+rmspet
+
+```
+
+```{r}
+rmspe_2<-c()
+
+for (i in 1:1000) {
+  tdata<-sample(nrow(df), nrow(df)*0.8, replace = FALSE)
+  train<-df[ind,1:8]
+  test<-df[-ind,1:8]
+
+  model2<-lm(mpg~., data = train)
+  
+  yhat <- predict(model2, newdata = test)
+  
+  rmspe_2[i]<-sqrt(mean((test$mpg - yhat)^2))
+}
+
+```
+
