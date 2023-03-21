@@ -1,0 +1,66 @@
+---
+title: "CART"
+output: html_document
+date: "2023-03-21"
+---
+myocarde = read.table("http://freakonometrics.free.fr/myocarde.csv",head=TRUE, sep=";")
+str(myocarde)
+
+#calculating G-Index
+
+y<-ifelse(myocarde$PRONO == "SURVIE", 1, 0)
+G<- 2 * mean(y) * (1-mean(y))
+G
+
+#classification of y by FRCAR
+
+x_1 <- myocarde$FRCAR
+tab = table(y, x_1)
+tab
+
+# check to see if GL + GR > GN
+GL <- 2 * mean(y[x_1 <= 60]) * (1 - mean(y[x_1 <= 60]))
+GR <- 2 * mean(y[x_1 > 60]) * (1 - mean(y[x_1 > 60]))
+pL <- length(x_1[x_1 <= 60]) / length(x_1)
+pR <- length(x_1[x_1 > 60]) / length(x_1)
+
+delta <- G - (pL * GL + pR * GR)
+delta
+# improved G by 0.009998016
+
+GI <- function(x){
+  G <- 2*mean(y)*(1-mean(y))
+  GL <- 2*mean(y[x_1 <= x])*(1-mean(y[x_1 <= x]))
+  GR <- 2*mean(y[x_1 > x])*(1-mean(y[x_1 > x]))
+  pL <- length(x_1[x_1 <= x])/length(x_1)
+  pR <- length(x_1[x_1 > x])/length(x_1)
+  del <- G - (pL*GL + pR*GR)
+  return(del)
+}
+
+#test
+GI(61)
+
+# loop with function above. to test each value in x_1 and find highest delta
+xm<-sort(unique(x_1))
+
+delta<-c()
+
+for (i in 1:length(xm)-1) {
+  delta[i]<-GI(xm[i])
+}
+delta
+  
+max(delta)
+xm[which.max(delta)]
+
+GI <- function(variable, value){
+  G <- 2*mean(y)*(1-mean(y))
+  GL <- 2*mean(y[variable <= value])*(1-mean(y[variable <= value]))
+  GR <- 2*mean(y[variable > value])*(1-mean(y[variable > value]))
+  pL <- length(variable[variable <= value])/length(variable)
+  pR <- length(variable[variable > value])/length(variable)
+  del = G - pL*GL - pR*GR
+  return(del)
+}
+
